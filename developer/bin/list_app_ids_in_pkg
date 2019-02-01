@@ -1,0 +1,69 @@
+#!/bin/bash
+#
+# list_app_ids_in_pkg
+#
+
+###
+### settings
+###
+
+set -e                # exit on any uncaught error
+set +o histexpand     # don't expand history expressions
+shopt -s nocasematch  # case-insensitive regular expressions
+
+# TODO: remove after debug.
+set -x
+
+###
+### global variables
+###
+
+# path to developer tools
+dev_tools="$(brew --repository)/Library/Taps/Homebrew/homebrew-cask/developer/bin"
+
+# prefer GNU xargs
+xargs="$(/usr/bin/which gxargs || printf '/usr/bin/xargs')"
+
+###
+### functions
+###
+
+list_app_paths_in_pkg () {
+    "$dev_tools/list_payload_in_pkg" "$pkg_arg" | \
+    /usr/bin/sed 's/ (+)//' |                     \
+    /usr/bin/egrep '^.*\.app$' #|                  \
+    #/usr/bin/sed 's/ /\\ /g'
+}
+
+list_ids_in_apps () {
+    /usr/bin/perl -pe 's{\n}{\000}sg' | \
+    "$xargs" -0 -I{} -n1 "$dev_tools/list_ids_in_app" "{}"
+}
+
+merge_sources () {
+    /usr/bin/sort | /usr/bin/uniq
+}
+
+###
+### main
+###
+
+_list_app_ids_in_pkg () {
+
+    pkg_arg="$1"
+    if [[ -h "$pkg_arg" ]]; then
+        pkg_arg="$(/usr/bin/readlink "$pkg_arg")"
+    fi
+
+    list_app_paths_in_pkg | \
+    list_ids_in_apps | \
+    merge_sources
+
+}
+
+# TODO: process args
+
+# dispatch main
+_list_app_ids_in_pkg "${@}"
+
+#
